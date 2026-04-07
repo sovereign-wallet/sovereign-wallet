@@ -4,6 +4,7 @@ import type { FeeRates, PrivacyAnalysis } from '../../types/messages';
 import PrivacyScore from '../components/PrivacyScore';
 import CoinControl from './CoinControl';
 import AIAdvisor from './AIAdvisor';
+import PSBTExchange from './PSBTExchange';
 
 interface SendProps {
   onBack: () => void;
@@ -32,10 +33,22 @@ export default function Send({ onBack }: SendProps) {
   const [error, setError] = useState('');
   const [sending, setSending] = useState(false);
   const [txResult, setTxResult] = useState<string | null>(null);
+  const [walletMode, setWalletMode] = useState<string>('full');
+  const [hwDevice, setHwDevice] = useState<string>('');
+  const [psbtForSign, setPsbtForSign] = useState<string | null>(null);
 
   useEffect(() => {
     loadFeeRates();
+    loadWalletMode();
   }, []);
+
+  const loadWalletMode = async () => {
+    const resp = await sendMessage<string>({ type: 'GET_WALLET_MODE' });
+    if (resp.success) setWalletMode(resp.data);
+    // Load device type from storage
+    const stored = await chrome.storage.local.get('sovereign_hw_device');
+    if (stored['sovereign_hw_device']) setHwDevice(stored['sovereign_hw_device'] as string);
+  };
 
   const analyzePrivacy = useCallback(async () => {
     const amountSats = Math.round(parseFloat(amount) * 1e8);
@@ -65,27 +78,48 @@ export default function Send({ onBack }: SendProps) {
     if (resp.success) setFeeRates(resp.data);
   };
 
+  const isWatchOnly = walletMode === 'watch-only';
+
   const handleSend = async () => {
     setError('');
     setSending(true);
 
-    const amountSats = Math.round(parseFloat(amount) * 1e8);
-    const resp = await sendMessage<{ txid: string; fee: number }>({
-      type: 'SEND_TRANSACTION',
-      destination,
-      amountSats,
-      feeRate: feeRates[feeLevel],
-      mode,
-      selectedUtxos: selectedUtxos.size > 0 ? Array.from(selectedUtxos) : undefined,
-    });
+    const sats = Math.round(parseFloat(amount) * 1e8);
 
-    setSending(false);
-    setShowConfirm(false);
-
-    if (resp.success) {
-      setTxResult(resp.data.txid);
+    if (isWatchOnly) {
+      // Build unsigned PSBT for hardware wallet signing
+      const resp = await sendMessage<{ psbtBase64: string }>({
+        type: 'BUILD_UNSIGNED_PSBT',
+        destination,
+        amountSats: sats,
+        feeRate: feeRates[feeLevel],
+        mode,
+        selectedUtxos: selectedUtxos.size > 0 ? Array.from(selectedUtxos) : undefined,
+      });
+      setSending(false);
+      setShowConfirm(false);
+      if (resp.success) {
+        setPsbtForSign(resp.data.psbtBase64);
+      } else {
+        setError(resp.error);
+      }
     } else {
-      setError(resp.error);
+      // Full wallet — sign and broadcast directly
+      const resp = await sendMessage<{ txid: string; fee: number }>({
+        type: 'SEND_TRANSACTION',
+        destination,
+        amountSats: sats,
+        feeRate: feeRates[feeLevel],
+        mode,
+        selectedUtxos: selectedUtxos.size > 0 ? Array.from(selectedUtxos) : undefined,
+      });
+      setSending(false);
+      setShowConfirm(false);
+      if (resp.success) {
+        setTxResult(resp.data.txid);
+      } else {
+        setError(resp.error);
+      }
     }
   };
 
@@ -343,11 +377,21 @@ export default function Send({ onBack }: SendProps) {
             <div className="row mt-16">
               <button onClick={() => setShowConfirm(false)}>Cancel</button>
               <button className="primary" onClick={handleSend} disabled={sending}>
-                {sending ? 'Sending...' : 'Confirm'}
+                {sending ? 'Building...' : isWatchOnly ? 'Create PSBT' : 'Confirm'}
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* PSBT exchange for hardware wallets */}
+      {psbtForSign && (
+        <PSBTExchange
+          psbtBase64={psbtForSign}
+          device={hwDevice}
+          onBroadcast={(txid) => { setPsbtForSign(null); setTxResult(txid); }}
+          onCancel={() => setPsbtForSign(null)}
+        />
       )}
     </div>
   );

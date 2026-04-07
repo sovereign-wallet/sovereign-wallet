@@ -191,6 +191,37 @@ export interface GetLoginStatusRequest {
   type: 'GET_LOGIN_STATUS';
 }
 
+// ── Hardware wallet ──
+
+export interface SetupWatchOnlyRequest {
+  type: 'SETUP_WATCH_ONLY';
+  xpub: string;
+  device: 'coldcard' | 'keystone';
+}
+
+export interface GetWalletModeRequest {
+  type: 'GET_WALLET_MODE';
+}
+
+export interface ValidateXpubRequest {
+  type: 'VALIDATE_XPUB';
+  xpub: string;
+}
+
+export interface BuildUnsignedPSBTRequest {
+  type: 'BUILD_UNSIGNED_PSBT';
+  destination: string;
+  amountSats: number;
+  feeRate: number;
+  mode: 'simple' | 'stonewall' | 'ricochet';
+  selectedUtxos?: string[];
+}
+
+export interface BroadcastSignedPSBTRequest {
+  type: 'BROADCAST_SIGNED_PSBT';
+  psbtBase64: string;
+}
+
 export type BackgroundRequest =
   | GenerateSeedRequest
   | SetupWalletRequest
@@ -224,7 +255,12 @@ export type BackgroundRequest =
   | AIAnalyzeRequest
   | SetApiKeyRequest
   | GetApiKeyRequest
-  | GetLoginStatusRequest;
+  | GetLoginStatusRequest
+  | SetupWatchOnlyRequest
+  | GetWalletModeRequest
+  | ValidateXpubRequest
+  | BuildUnsignedPSBTRequest
+  | BroadcastSignedPSBTRequest;
 
 // ── Response types (background → popup) ──
 

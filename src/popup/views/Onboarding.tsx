@@ -4,11 +4,13 @@ import { KNOWN_NODES, BADGE_COLORS, PRIVACY_COLORS } from '../../config/nodes';
 
 interface OnboardingProps {
   onComplete: () => void;
+  onImport: () => void;
+  onConnectHardware: () => void;
 }
 
 type Step = 'welcome' | 'create-seed' | 'verify-seed' | 'set-password' | 'configure-node' | 'done';
 
-export default function Onboarding({ onComplete }: OnboardingProps) {
+export default function Onboarding({ onComplete, onImport, onConnectHardware }: OnboardingProps) {
   const [step, setStep] = useState<Step>('welcome');
   const [seed, setSeed] = useState('');
   const [verifyIndices, setVerifyIndices] = useState<number[]>([]);
@@ -146,8 +148,17 @@ export default function Onboarding({ onComplete }: OnboardingProps) {
           </div>
 
           <button className="primary full" onClick={handleGenerateSeed} disabled={loading}>
-            {loading ? 'Generating...' : 'Create Wallet'}
+            {loading ? 'Generating...' : 'Create new wallet'}
           </button>
+          <button className="full" onClick={onImport}>
+            Import existing seed
+          </button>
+          <button className="full" onClick={onConnectHardware} style={{ color: 'var(--text-secondary)' }}>
+            Connect hardware wallet
+          </button>
+          <div className="text-muted text-small text-center" style={{ marginTop: '-8px' }}>
+            Coldcard &middot; Keystone
+          </div>
         </div>
       )}
 

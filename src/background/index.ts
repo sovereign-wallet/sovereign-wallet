@@ -28,6 +28,10 @@ import { selectUTXOs as autoSelectUTXOs, validateSelection } from './coin-contro
 import { derivePaymentCode, buildNotificationTransaction } from './paynym';
 import { getConnectedPeers, generateInviteConfig, removePeer } from './node-admin';
 import { analyzeWithAI, getApiKey, setApiKey } from './ai-advisor';
+import {
+  getWalletMode, setupWatchOnly, validateXpub,
+  extractSignedTx, validateSignedPSBT,
+} from './hardware-wallet';
 import type {
   BackgroundRequest,
   BackgroundResponse,
@@ -410,6 +414,55 @@ async function handleMessage(request: BackgroundRequest): Promise<BackgroundResp
     case 'GET_LOGIN_STATUS': {
       const status = await getLoginStatus();
       return { success: true, data: status };
+    }
+
+    // ── Hardware wallet ──
+
+    case 'SETUP_WATCH_ONLY': {
+      const validation = validateXpub(request.xpub);
+      if (!validation.valid) return { success: false, error: validation.error ?? 'Invalid xpub' };
+      await setupWatchOnly(request.xpub, request.device);
+      return { success: true, data: { xpub: request.xpub } };
+    }
+
+    case 'GET_WALLET_MODE': {
+      const mode = await getWalletMode();
+      return { success: true, data: mode };
+    }
+
+    case 'VALIDATE_XPUB': {
+      const result = validateXpub(request.xpub);
+      return { success: true, data: result };
+    }
+
+    case 'BUILD_UNSIGNED_PSBT': {
+      await ensureConnected();
+      const xpub = await getStoredXpub();
+      if (!xpub) return { success: false, error: 'No xpub found' };
+      const utxos = await getUTXOs(xpub);
+      const changeAddr = await getReceiveAddress(xpub);
+
+      // Build without signing — we need the PSBT before finalization
+      const { buildTransactionPSBT } = await import('./transactions');
+      const psbt = await buildTransactionPSBT({
+        xpub,
+        utxos,
+        destination: request.destination,
+        amountSats: request.amountSats,
+        feeRate: request.feeRate,
+        changeAddress: changeAddr,
+        selectedUtxos: request.selectedUtxos,
+      });
+      return { success: true, data: { psbtBase64: psbt } };
+    }
+
+    case 'BROADCAST_SIGNED_PSBT': {
+      const validation = validateSignedPSBT(request.psbtBase64);
+      if (!validation.valid) return { success: false, error: validation.error ?? 'Invalid PSBT' };
+      const { hex, txid } = extractSignedTx(request.psbtBase64);
+      await ensureConnected();
+      await broadcastTransaction(hex);
+      return { success: true, data: { txid } };
     }
 
     default: {

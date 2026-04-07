@@ -473,3 +473,75 @@ export async function buildRicochet(params: BuildTxParams): Promise<RicochetChai
     hops: [hop1Address, hop2Address],
   };
 }
+
+// ── Build unsigned PSBT for hardware wallet signing ──
+
+export interface BuildPSBTParams {
+  xpub: string;
+  utxos: UTXOData[];
+  destination: string;
+  amountSats: number;
+  feeRate: number;
+  changeAddress: string;
+  selectedUtxos?: string[];
+}
+
+export async function buildTransactionPSBT(params: BuildPSBTParams): Promise<string> {
+  const { utxos, destination, amountSats, feeRate, changeAddress, selectedUtxos: selectedIds, xpub } = params;
+
+  const selected = selectUTXOs(utxos, amountSats, feeRate, selectedIds);
+  const totalInput = selected.reduce((sum, u) => sum + u.value, 0);
+
+  let fee = estimateTxFee(selected.length, 2, feeRate);
+  let change = totalInput - amountSats - fee;
+
+  const DUST_THRESHOLD = 546;
+  if (change < DUST_THRESHOLD) {
+    fee = totalInput - amountSats;
+    change = 0;
+  }
+
+  if (totalInput < amountSats + fee) throw new Error('Insufficient funds');
+
+  const psbt = new bitcoin.Psbt({ network });
+
+  // Add inputs with full derivation info for hardware wallet
+  for (const utxo of selected) {
+    const rawHex = await getClient().getTransaction(utxo.txid);
+    const info = findAddressInfo(xpub, utxo.address);
+
+    const inputData: Record<string, unknown> = {
+      hash: utxo.txid,
+      index: utxo.vout,
+      witnessUtxo: {
+        script: bitcoin.address.toOutputScript(utxo.address, network),
+        value: BigInt(utxo.value),
+      },
+      nonWitnessUtxo: Buffer.from(rawHex, 'hex'),
+    };
+
+    // Add BIP32 derivation path for hardware wallet
+    if (info) {
+      const node = HDKey.fromExtendedKey(xpub);
+      const child = node.deriveChild(info.change ? 1 : 0).deriveChild(info.index);
+      if (child.publicKey) {
+        inputData.bip32Derivation = [{
+          masterFingerprint: Buffer.alloc(4), // hardware wallet fills this
+          pubkey: Buffer.from(child.publicKey),
+          path: `m/84'/0'/0'/${info.change ? 1 : 0}/${info.index}`,
+        }];
+      }
+    }
+
+    psbt.addInput(inputData as unknown as Parameters<typeof psbt.addInput>[0]);
+  }
+
+  // Add outputs
+  addPsbtOutput(psbt, destination, amountSats);
+  if (change > 0) {
+    addPsbtOutput(psbt, changeAddress, change);
+  }
+
+  // Return base64 PSBT (unsigned)
+  return psbt.toBase64();
+}
