@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+sovereign-wallet.zip
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.development
+.env.*.local
+
+# Certificates and keys
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+
+# Node configuration (contains passwords)
+bitcoin.conf
+fulcrum.conf
+wg0.conf
+wireguard/*.conf
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
+
+# Claude Code
+.claude/
