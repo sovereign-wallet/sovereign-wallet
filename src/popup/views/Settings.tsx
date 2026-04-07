@@ -66,8 +66,11 @@ export default function Settings({ onBack, onLock, onNavigate }: SettingsProps) 
     setTestResult(null);
     await chrome.storage.local.set({ [SELECTED_NODE_KEY]: node.id });
 
-    if (node.id !== 'custom' && node.url) {
-      await sendMessage({ type: 'SET_NODE_URL', url: node.url });
+    // Auto-test nodes that have a URL
+    const url = node.id === 'custom' ? customUrl : node.url;
+    if (url) {
+      await sendMessage({ type: 'SET_NODE_URL', url });
+      testNodeById(node.id);
     }
   };
 
@@ -77,15 +80,21 @@ export default function Settings({ onBack, onLock, onNavigate }: SettingsProps) 
     setTestResult(null);
   };
 
-  const testConnection = async () => {
+  const testNodeById = async (nodeId: string) => {
     setTesting(true);
     setTestResult(null);
-    const url = getActiveUrl();
+
+    const node = KNOWN_NODES.find(n => n.id === nodeId);
+    const url = node?.id === 'custom' ? customUrl : (node?.url ?? '');
+
     if (!url) {
-      setTestResult('Error: Empty URL');
+      setTestResult(`No URL for "${node?.name ?? nodeId}". Configure a URL or select a public node.`);
       setTesting(false);
       return;
     }
+
+    await sendMessage({ type: 'SET_NODE_URL', url });
+
     const resp = await sendMessage<{ connected: boolean; version?: string; error?: string }>({
       type: 'TEST_CONNECTION',
       url,
@@ -97,6 +106,8 @@ export default function Settings({ onBack, onLock, onNavigate }: SettingsProps) 
       if (d.connected) loadAll();
     }
   };
+
+  const testConnection = () => testNodeById(selectedNodeId);
 
   const handleExportSeed = async () => {
     setSeedError('');

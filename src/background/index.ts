@@ -16,14 +16,17 @@ import {
   loadVault,
   getLoginStatus,
 } from './keyring';
-import { getClient, resetClient, toElectrumScripthash } from './electrum';
-import { getBalance, getUTXOs, getTransactionHistory, getReceiveAddress } from './wallet';
+import {
+  connectToNode, disconnectNode, isNodeConnected,
+  getBalance, getUTXOs, getTransactionHistory, getReceiveAddress,
+  getFeeRates, getNodeInfo, broadcastTransaction, testConnection as testNodeConnection,
+} from './connection';
 import { buildTransaction, buildStonewall, buildRicochet, estimateFee } from './transactions';
 import { analyzeTransaction } from './privacy';
 import { saveLabel, getAllLabels, deleteLabel } from './utxo-labels';
 import { selectUTXOs as autoSelectUTXOs, validateSelection } from './coin-control';
 import { derivePaymentCode, buildNotificationTransaction } from './paynym';
-import { getNodeStatus, getConnectedPeers, generateInviteConfig, removePeer } from './node-admin';
+import { getConnectedPeers, generateInviteConfig, removePeer } from './node-admin';
 import { analyzeWithAI, getApiKey, setApiKey } from './ai-advisor';
 import type {
   BackgroundRequest,
@@ -36,25 +39,15 @@ import type {
   PrivacyAnalysis,
 } from '../types/messages';
 
-// ── Auto-lock alarm ──
+// ── Alarms ──
 
-chrome.alarms.create('auto-lock-check', { periodInMinutes: 1 });
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === 'auto-lock-check') {
-    // The keyring module handles its own timer,
-    // but this alarm ensures the service worker stays alive
-  }
-});
+chrome.alarms.create('heartbeat', { periodInMinutes: 1 });
 
 // ── Connection management ──
 
 async function ensureConnected(): Promise<void> {
-  const client = getClient();
-  if (!client.isConnected()) {
-    const url = await getNodeUrl();
-    client.setUrl(url);
-    await client.connect();
-    await client.serverVersion();
+  if (!isNodeConnected()) {
+    await connectToNode();
   }
 }
 
@@ -169,20 +162,17 @@ async function handleMessage(request: BackgroundRequest): Promise<BackgroundResp
         selectedUtxos: request.selectedUtxos,
       };
 
-      const client = getClient();
-
       if (request.mode === 'ricochet') {
         const chain = await buildRicochet(buildParams);
-        // Broadcast all transactions in sequence
         const txids: string[] = [];
         for (const tx of chain.transactions) {
-          const broadcastedTxid = await client.broadcastTransaction(tx.hex);
+          const broadcastedTxid = await broadcastTransaction(tx.hex);
           txids.push(broadcastedTxid);
         }
         return {
           success: true,
           data: {
-            txid: txids[txids.length - 1]!, // final tx to destination
+            txid: txids[txids.length - 1]!,
             fee: chain.totalFee,
             vsize: chain.transactions.reduce((sum, t) => sum + t.vsize, 0),
             hops: chain.hops,
@@ -195,7 +185,7 @@ async function handleMessage(request: BackgroundRequest): Promise<BackgroundResp
         ? await buildStonewall(buildParams)
         : await buildTransaction(buildParams);
 
-      const txid = await client.broadcastTransaction(built.hex);
+      const txid = await broadcastTransaction(built.hex);
       return { success: true, data: { txid, fee: built.fee, vsize: built.vsize } };
     }
 
@@ -209,18 +199,17 @@ async function handleMessage(request: BackgroundRequest): Promise<BackgroundResp
       const totalAvailable = utxos.reduce((sum, u) => sum + u.value, 0);
 
       // Rough estimate based on typical tx shape
-      let inputCount = 1;
+      let inputCount = 0;
       let outputCount = 2;
 
       if (request.mode === 'stonewall') outputCount = 4;
-      if (request.mode === 'ricochet') outputCount = 2; // + 2 hop fees
+      if (request.mode === 'ricochet') outputCount = 2;
 
-      // Estimate how many inputs needed
       const sorted = [...utxos].sort((a, b) => b.value - a.value);
       let accum = 0;
       for (const u of sorted) {
-        accum += u.value;
         inputCount++;
+        accum += u.value;
         if (accum >= request.amountSats) break;
       }
 
@@ -236,62 +225,30 @@ async function handleMessage(request: BackgroundRequest): Promise<BackgroundResp
     }
 
     case 'GET_FEE_RATES': {
-      await ensureConnected();
-      const client = getClient();
-      const [fast, normal, slow] = await Promise.all([
-        client.estimateFee(1),
-        client.estimateFee(6),
-        client.estimateFee(24),
-      ]);
-      const rates: FeeRates = { fast, normal, slow };
+      const rates = await getFeeRates();
       return { success: true, data: rates };
     }
 
     case 'GET_NODE_INFO': {
-      try {
-        await ensureConnected();
-        const client = getClient();
-        const header = await client.subscribeToHeaders(() => {});
-        const url = await getNodeUrl();
-        const info: NodeInfo = {
-          server: url,
-          height: header.height,
-          connected: client.isConnected(),
-        };
-        return { success: true, data: info };
-      } catch {
-        const url = await getNodeUrl();
-        return {
-          success: true,
-          data: { server: url, height: 0, connected: false } as NodeInfo,
-        };
-      }
+      const info = await getNodeInfo();
+      return { success: true, data: info };
     }
 
     case 'SET_NODE_URL': {
       await setNodeUrl(request.url);
-      const client = getClient();
-      client.disconnect();
-      resetClient(request.url);
+      disconnectNode();
       return { success: true, data: null };
     }
 
     case 'TEST_CONNECTION': {
       const url = request.url ?? await getNodeUrl();
-      const testClient = resetClient(url);
-      try {
-        await testClient.connect();
-        const version = await testClient.serverVersion();
-        return { success: true, data: { connected: true, version: version[0] } };
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Unknown error';
-        return { success: true, data: { connected: false, error: msg } };
-      }
+      if (!url) return { success: true, data: { connected: false, error: 'No URL configured' } };
+      const result = await testNodeConnection(url);
+      return { success: true, data: result };
     }
 
     case 'GET_CONNECTION_STATUS': {
-      const client = getClient();
-      return { success: true, data: client.isConnected() };
+      return { success: true, data: isNodeConnected() };
     }
 
     case 'EXPORT_SEED': {
@@ -409,8 +366,7 @@ async function handleMessage(request: BackgroundRequest): Promise<BackgroundResp
         utxos,
         feeRate: request.feeRate,
       });
-      const client = getClient();
-      await client.broadcastTransaction(result.hex);
+      await broadcastTransaction(result.hex);
       return { success: true, data: { txid: result.txid, fee: result.fee } };
     }
 
@@ -462,88 +418,36 @@ async function handleMessage(request: BackgroundRequest): Promise<BackgroundResp
   }
 }
 
-// ── Transaction notifications ──
+// ── Transaction notifications (single alarm handler) ──
 
-let notificationsSetup = false;
+const knownTxids = new Set<string>();
 
-async function setupTransactionNotifications(): Promise<void> {
-  if (notificationsSetup) return;
-  notificationsSetup = true;
-
+async function checkForNewTransactions(): Promise<void> {
+  if (isLocked()) return;
   try {
-    await ensureConnected();
     const xpub = await getStoredXpub();
     if (!xpub) return;
-
-    const client = getClient();
-
-    // Subscribe to headers for confirmation tracking
-    const knownTxids = new Set<string>();
-
-    // Check for new transactions periodically
-    chrome.alarms.create('check-txs', { periodInMinutes: 1 });
-    chrome.alarms.onAlarm.addListener(async (alarm) => {
-      if (alarm.name !== 'check-txs') return;
-      if (isLocked()) return;
-
-      try {
-        const currentXpub = await getStoredXpub();
-        if (!currentXpub) return;
-
-        await ensureConnected();
-        const history = await getTransactionHistory(currentXpub);
-
-        for (const tx of history) {
-          if (knownTxids.has(tx.txid)) continue;
-          knownTxids.add(tx.txid);
-
-          // Only notify for recent unconfirmed or just-confirmed transactions
-          if (!tx.confirmed && tx.amount > 0) {
-            chrome.notifications.create(tx.txid, {
-              type: 'basic',
-              iconUrl: 'icons/icon128.png',
-              title: 'Bitcoin received',
-              message: `+${tx.amount.toLocaleString()} sats`,
-            });
-          }
-        }
-      } catch {
-        // Silent fail for notification polling
+    await ensureConnected();
+    const history = await getTransactionHistory(xpub);
+    for (const tx of history) {
+      if (knownTxids.has(tx.txid)) continue;
+      knownTxids.add(tx.txid);
+      if (!tx.confirmed && tx.amount > 0) {
+        chrome.notifications.create(tx.txid, {
+          type: 'basic',
+          iconUrl: 'icons/icon128.png',
+          title: 'Bitcoin received',
+          message: `+${tx.amount.toLocaleString()} sats`,
+        });
       }
-    });
-
-    // Subscribe to new block headers for confirmation notifications
-    client.subscribeToHeaders(async (header) => {
-      try {
-        const currentXpub = await getStoredXpub();
-        if (!currentXpub || isLocked()) return;
-
-        const history = await getTransactionHistory(currentXpub);
-        const justConfirmed = history.filter(
-          tx => tx.confirmed && tx.height === header.height && !knownTxids.has(`confirmed:${tx.txid}`)
-        );
-
-        for (const tx of justConfirmed) {
-          knownTxids.add(`confirmed:${tx.txid}`);
-          chrome.notifications.create(`confirmed:${tx.txid}`, {
-            type: 'basic',
-            iconUrl: 'icons/icon128.png',
-            title: 'Transaction confirmed',
-            message: `${tx.txid.slice(0, 16)}... en bloque ${header.height}`,
-          });
-        }
-      } catch {
-        // Silent fail
-      }
-    });
+    }
   } catch {
-    notificationsSetup = false;
+    // Silent fail
   }
 }
 
-// Start notification system when wallet is unlocked
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === 'auto-lock-check' && !isLocked()) {
-    setupTransactionNotifications();
+  if (alarm.name === 'heartbeat') {
+    checkForNewTransactions();
   }
 });

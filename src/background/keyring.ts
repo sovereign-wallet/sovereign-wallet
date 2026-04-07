@@ -266,7 +266,7 @@ export async function getStoredXpub(): Promise<string | null> {
 
 export async function getNodeUrl(): Promise<string> {
   const result = await chrome.storage.local.get(NODE_URL_KEY);
-  return (result[NODE_URL_KEY] as string) ?? 'wss://192.168.0.184:50002';
+  return (result[NODE_URL_KEY] as string) ?? '';
 }
 
 export async function setNodeUrl(url: string): Promise<void> {

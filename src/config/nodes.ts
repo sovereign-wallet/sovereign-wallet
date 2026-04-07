@@ -1,10 +1,13 @@
 export type PrivacyLevel = 'maximum' | 'medium' | 'low';
 export type NodeBadge = 'own' | 'dev' | 'public' | 'custom';
 
+export type ConnectionType = 'websocket' | 'rest';
+
 export interface NodeOption {
   id: string;
   name: string;
   url: string;
+  connectionType: ConnectionType;
   privacyLevel: PrivacyLevel;
   privacyLabel: string;
   privacyDescription: string;
@@ -21,6 +24,7 @@ export const KNOWN_NODES: NodeOption[] = [
     id: 'own-node',
     name: 'My Node (NUC)',
     url: env.VITE_DEFAULT_NODE_URL ?? '',
+    connectionType: 'websocket',
     privacyLevel: 'maximum',
     privacyLabel: 'Maximum privacy',
     privacyDescription: 'Your own node. Nobody sees your queries.',
@@ -31,6 +35,7 @@ export const KNOWN_NODES: NodeOption[] = [
     id: 'dev-node',
     name: 'Developer node',
     url: env.VITE_NODE_ONION_ADDRESS ?? '',
+    connectionType: 'websocket',
     privacyLevel: 'medium',
     privacyLabel: 'Medium privacy',
     privacyDescription: 'The developer can see your addresses but never your keys.',
@@ -41,7 +46,8 @@ export const KNOWN_NODES: NodeOption[] = [
   {
     id: 'blockstream',
     name: 'Blockstream (public)',
-    url: 'wss://electrum.blockstream.info:50002',
+    url: 'https://blockstream.info/api',
+    connectionType: 'rest',
     privacyLevel: 'low',
     privacyLabel: 'Low privacy',
     privacyDescription: 'Public node by Blockstream. Third parties can see your addresses.',
@@ -52,7 +58,8 @@ export const KNOWN_NODES: NodeOption[] = [
   {
     id: 'mempool',
     name: 'mempool.space (public)',
-    url: 'wss://electrum.mempool.space:50002',
+    url: 'https://mempool.space/api',
+    connectionType: 'rest',
     privacyLevel: 'low',
     privacyLabel: 'Low privacy',
     privacyDescription: 'Public node by mempool.space. Third parties can see your addresses.',
@@ -64,6 +71,7 @@ export const KNOWN_NODES: NodeOption[] = [
     id: 'custom',
     name: 'Custom node',
     url: '',
+    connectionType: 'websocket',
     privacyLevel: 'maximum',
     privacyLabel: 'Depends on your node',
     privacyDescription: 'Enter the URL of your own Electrum server.',

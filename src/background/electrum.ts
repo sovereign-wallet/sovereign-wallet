@@ -143,6 +143,14 @@ export class ElectrumClient {
   // ── Message handling ──
 
   private handleMessage(data: string): void {
+    // Some servers send multiple JSON objects in one message, newline-separated
+    const lines = data.split('\n').filter(l => l.trim());
+    for (const line of lines) {
+      this.handleSingleMessage(line);
+    }
+  }
+
+  private handleSingleMessage(data: string): void {
     let parsed: ElectrumResponse | ElectrumNotification;
     try {
       parsed = JSON.parse(data) as ElectrumResponse | ElectrumNotification;

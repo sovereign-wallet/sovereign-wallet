@@ -89,6 +89,15 @@ function base58Encode(data: Uint8Array): string {
 
 function base58Decode(str: string): Uint8Array {
   const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+  // Count leading '1's (= leading zero bytes)
+  let leadingZeros = 0;
+  for (const char of str) {
+    if (char === '1') leadingZeros++;
+    else break;
+  }
+
+  // Decode base58 to BigInt
   let num = 0n;
   for (const char of str) {
     const idx = ALPHABET.indexOf(char);
@@ -96,20 +105,17 @@ function base58Decode(str: string): Uint8Array {
     num = num * 58n + BigInt(idx);
   }
 
-  const hex = num.toString(16).padStart(2, '0');
-  const bytes = hexToBytes(hex.length % 2 ? '0' + hex : hex);
+  // Convert BigInt to bytes (ensure even-length hex)
+  let hex = num.toString(16);
+  if (hex.length % 2 !== 0) hex = '0' + hex;
+  const decoded = hexToBytes(hex);
 
-  // Count leading '1's
-  let leadingZeros = 0;
-  for (const char of str) {
-    if (char === '1') leadingZeros++;
-    else break;
-  }
+  // Prepend leading zero bytes
+  const result = new Uint8Array(leadingZeros + decoded.length);
+  result.set(decoded, leadingZeros);
 
-  const result = new Uint8Array(leadingZeros + bytes.length);
-  result.set(bytes, leadingZeros);
-
-  // Verify checksum
+  // Verify checksum (last 4 bytes)
+  if (result.length < 5) throw new Error('Invalid payment code: too short');
   const payload = result.slice(0, -4);
   const checksum = result.slice(-4);
   const expectedChecksum = sha256(sha256(payload)).slice(0, 4);

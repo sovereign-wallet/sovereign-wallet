@@ -4,6 +4,11 @@
   "version": "0.1.0",
   "description": "Bitcoin wallet with privacy-first design. Connect to your own Electrum/Fulcrum node.",
   "permissions": ["storage", "alarms", "notifications"],
+  "host_permissions": [
+    "wss://*/*",
+    "ws://*/*",
+    "https://*/*"
+  ],
   "action": {
     "default_popup": "index.html",
     "default_icon": {
@@ -22,6 +27,6 @@
     "128": "icons/icon128.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://* wss://* ws://*"
   }
 }

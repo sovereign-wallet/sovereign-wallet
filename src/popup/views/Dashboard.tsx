@@ -17,14 +17,39 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   const [nodeBadge, setNodeBadge] = useState<NodeBadge>('own');
   const [nodeName, setNodeName] = useState('');
 
+  const CACHE_KEY = 'sovereign_dashboard_cache';
+
   useEffect(() => {
-    loadData();
-    const interval = setInterval(checkConnection, 15_000);
+    loadCachedThenRefresh();
+    const interval = setInterval(refreshData, 30_000);
     return () => clearInterval(interval);
   }, []);
 
-  const loadData = async () => {
-    setLoading(true);
+  // Show cached data instantly, then refresh from network
+  const loadCachedThenRefresh = async () => {
+    // 1. Load cache + connection status + node badge (instant, no network)
+    const stored = await chrome.storage.local.get([CACHE_KEY, 'selected_node_id']);
+    const cache = stored[CACHE_KEY] as string | undefined;
+    if (cache) {
+      const parsed = JSON.parse(cache) as { balance: BalanceData; txs: TransactionRecord[] };
+      setBalance(parsed.balance);
+      setTxs(parsed.txs);
+      setLoading(false); // show cached data immediately
+    }
+
+    const nodeId = (stored['selected_node_id'] as string) ?? 'own-node';
+    const node = KNOWN_NODES.find(n => n.id === nodeId);
+    if (node) { setNodeBadge(node.badge); setNodeName(node.name); }
+
+    // Check connection (fast, no scanning)
+    const connResp = await sendMessage<boolean>({ type: 'GET_CONNECTION_STATUS' });
+    if (connResp.success) setConnected(connResp.data);
+
+    // 2. Refresh from network in background
+    refreshData();
+  };
+
+  const refreshData = async () => {
     const [balResp, txResp, connResp] = await Promise.all([
       sendMessage<BalanceData>({ type: 'GET_BALANCE' }),
       sendMessage<TransactionRecord[]>({ type: 'GET_TRANSACTION_HISTORY' }),
@@ -34,22 +59,13 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     if (balResp.success) setBalance(balResp.data);
     if (txResp.success) setTxs(txResp.data.slice(0, 5));
     if (connResp.success) setConnected(connResp.data);
-
-    // Load selected node badge
-    const stored = await chrome.storage.local.get('selected_node_id');
-    const nodeId = (stored['selected_node_id'] as string) ?? 'own-node';
-    const node = KNOWN_NODES.find(n => n.id === nodeId);
-    if (node) {
-      setNodeBadge(node.badge);
-      setNodeName(node.name);
-    }
-
     setLoading(false);
-  };
 
-  const checkConnection = async () => {
-    const resp = await sendMessage<boolean>({ type: 'GET_CONNECTION_STATUS' });
-    if (resp.success) setConnected(resp.data);
+    // Save to cache for next popup open
+    if (balResp.success && txResp.success) {
+      const cacheData = { balance: balResp.data, txs: txResp.data.slice(0, 5) };
+      chrome.storage.local.set({ [CACHE_KEY]: JSON.stringify(cacheData) });
+    }
   };
 
   const formatBtc = (sats: number): string => {
