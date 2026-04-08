@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1a1a"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ff6600"/>
+      <stop offset="100%" stop-color="#cc5200"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="250" fill="url(#bg)" stroke="#2a2a2a" stroke-width="4"/>
+  
+  <!-- Shield outline -->
+  <path d="M256 60 L420 140 L420 280 Q420 400 256 460 Q92 400 92 280 L92 140 Z" 
+        fill="none" stroke="url(#accent)" stroke-width="6" stroke-linejoin="round"/>
+  
+  <!-- Inner shield fill (subtle) -->
+  <path d="M256 80 L400 152 L400 275 Q400 385 256 440 Q112 385 112 275 L112 152 Z" 
+        fill="#111111" opacity="0.6"/>
+  
+  <!-- Bitcoin B symbol - stylized -->
+  <text x="256" y="310" 
+        font-family="'Courier New', monospace" 
+        font-size="220" 
+        font-weight="bold" 
+        fill="#ff6600" 
+        text-anchor="middle" 
+        dominant-baseline="middle">&#8383;</text>
+  
+  <!-- Horizontal lines through B (Bitcoin style) -->
+  <line x1="220" y1="160" x2="220" y2="130" stroke="#ff6600" stroke-width="8" stroke-linecap="round"/>
+  <line x1="280" y1="160" x2="280" y2="130" stroke="#ff6600" stroke-width="8" stroke-linecap="round"/>
+  <line x1="220" y1="380" x2="220" y2="410" stroke="#ff6600" stroke-width="8" stroke-linecap="round"/>
+  <line x1="280" y1="380" x2="280" y2="410" stroke="#ff6600" stroke-width="8" stroke-linecap="round"/>
+  
+  <!-- Lock keyhole at bottom of shield -->
+  <circle cx="256" cy="350" r="12" fill="#ff6600"/>
+  <rect x="250" y="350" width="12" height="20" rx="2" fill="#ff6600"/>
+</svg>

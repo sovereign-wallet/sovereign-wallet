@@ -1,6 +1,9 @@
-# Sovereign Wallet
+<p align="center">
+  <img src="docs/logo.svg" width="120" alt="Sovereign Wallet" />
+</p>
 
-### The browser wallet Samourai never built.
+<h1 align="center">Sovereign Wallet</h1>
+<h3 align="center">The browser wallet Samourai never built.</h3>
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Network: Bitcoin Mainnet](https://img.shields.io/badge/Network-Bitcoin%20Mainnet-orange.svg)]() [![Open Source](https://img.shields.io/badge/Open%20Source-yes-brightgreen.svg)]()
 
