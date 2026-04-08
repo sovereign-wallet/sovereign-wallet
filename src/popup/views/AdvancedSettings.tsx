@@ -16,7 +16,7 @@ const CONFIG_KEY = 'sovereign_advanced_config';
 async function loadConfig(): Promise<AdvConfig> {
   const result = await chrome.storage.local.get(CONFIG_KEY);
   const raw = result[CONFIG_KEY] as string | undefined;
-  if (!raw) return { gapLimit: 20, rbfEnabled: true, denomination: 'both', language: 'es' };
+  if (!raw) return { gapLimit: 20, rbfEnabled: true, denomination: 'both', language: 'en' };
   return JSON.parse(raw) as AdvConfig;
 }
 
@@ -25,7 +25,7 @@ async function saveConfig(config: AdvConfig): Promise<void> {
 }
 
 export default function AdvancedSettings({ onBack }: AdvancedSettingsProps) {
-  const [config, setConfig] = useState<AdvConfig>({ gapLimit: 20, rbfEnabled: true, denomination: 'both', language: 'es' });
+  const [config, setConfig] = useState<AdvConfig>({ gapLimit: 20, rbfEnabled: true, denomination: 'both', language: 'en' });
   const [saved, setSaved] = useState(false);
   const [showReset, setShowReset] = useState(false);
   const [resetConfirm, setResetConfirm] = useState('');

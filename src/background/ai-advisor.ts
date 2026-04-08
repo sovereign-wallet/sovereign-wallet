@@ -35,11 +35,11 @@ export async function analyzeWithAI(txContext: TxContext): Promise<string> {
 
   const userMessage = [
     `Privacy Score: ${txContext.score}/100`,
-    `Problemas: ${issueList || 'ninguno'}`,
-    `UTXOs usados: ${txContext.utxoCount}`,
-    `Stonewall: ${txContext.hasStonewall ? 'sí' : 'no'}`,
-    `Ricochet: ${txContext.hasRicochet ? 'sí' : 'no'}`,
-    `Tipo de destino: ${txContext.destinationType}`,
+    `Issues: ${issueList || 'none'}`,
+    `UTXOs used: ${txContext.utxoCount}`,
+    `Stonewall: ${txContext.hasStonewall ? 'yes' : 'no'}`,
+    `Ricochet: ${txContext.hasRicochet ? 'yes' : 'no'}`,
+    `Destination type: ${txContext.destinationType}`,
   ].join('\n');
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {

@@ -20,8 +20,18 @@ export interface InviteConfig {
 
 // ── Constants ──
 
-const WG_SERVER_ENDPOINT = '192.168.0.184:51820';
-const WG_SERVER_PUBKEY = 'Yqq40nUYceHybNqL4hYNOTquNR17bEWkvqqZPV4Yamg=';
+// These are read from storage or fall back to defaults.
+// Users configure them via .env (VITE_WIREGUARD_PUBLIC_KEY) or Settings.
+const WG_DEFAULT_ENDPOINT = '192.168.0.184:51820';
+const WG_DEFAULT_PUBKEY = 'Yqq40nUYceHybNqL4hYNOTquNR17bEWkvqqZPV4Yamg=';
+
+async function getWGConfig(): Promise<{ endpoint: string; pubkey: string }> {
+  const result = await chrome.storage.local.get(['wg_endpoint', 'wg_pubkey']);
+  return {
+    endpoint: (result['wg_endpoint'] as string) ?? WG_DEFAULT_ENDPOINT,
+    pubkey: (result['wg_pubkey'] as string) ?? WG_DEFAULT_PUBKEY,
+  };
+}
 const WG_SUBNET = '10.0.0';
 const PEERS_KEY = 'sovereign_wg_peers';
 
@@ -103,6 +113,7 @@ function generateBase64Key(): string {
 }
 
 export async function generateInviteConfig(friendName: string): Promise<InviteConfig> {
+  const wg = await getWGConfig();
   const peers = await loadPeers();
 
   // Assign next IP in range (server is .1, first peer is .2)
@@ -129,9 +140,9 @@ export async function generateInviteConfig(friendName: string): Promise<InviteCo
     `DNS = ${WG_SUBNET}.1`,
     '',
     '[Peer]',
-    `PublicKey = ${WG_SERVER_PUBKEY}`,
+    `PublicKey = ${wg.pubkey}`,
     `PresharedKey = ${presharedKey}`,
-    `Endpoint = ${WG_SERVER_ENDPOINT}`,
+    `Endpoint = ${wg.endpoint}`,
     `AllowedIPs = ${WG_SUBNET}.0/24`,
     'PersistentKeepalive = 25',
   ].join('\n');
@@ -152,8 +163,8 @@ export async function generateInviteConfig(friendName: string): Promise<InviteCo
   return {
     friendName,
     assignedIP,
-    serverEndpoint: WG_SERVER_ENDPOINT,
-    serverPublicKey: WG_SERVER_PUBKEY,
+    serverEndpoint: wg.endpoint,
+    serverPublicKey: wg.pubkey,
     presharedKey,
     configText,
   };

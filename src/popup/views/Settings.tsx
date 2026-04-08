@@ -3,6 +3,7 @@ import { sendMessage } from '../../types/messages';
 import type { NodeInfo } from '../../types/messages';
 import { KNOWN_NODES, BADGE_COLORS, PRIVACY_COLORS } from '../../config/nodes';
 import type { NodeOption } from '../../config/nodes';
+import { DONATION_CONFIG } from '../../config/donations';
 
 interface SettingsProps {
   onBack: () => void;
@@ -324,6 +325,24 @@ export default function Settings({ onBack, onLock, onNavigate }: SettingsProps) 
             <button className="full" onClick={() => onNavigate('advanced')}>Advanced settings</button>
             <button className="full" onClick={() => onNavigate('backup')}>Backup / Import wallet</button>
           </>
+        )}
+
+        {/* Support */}
+        {DONATION_CONFIG.bitcoinAddress && (
+          <div className="card">
+            <div className="label mb-8">Support the project</div>
+            <div className="text-small text-muted" style={{ lineHeight: 1.6, marginBottom: '8px' }}>
+              {DONATION_CONFIG.message}
+            </div>
+            <div className="text-small" style={{ wordBreak: 'break-all', marginBottom: '4px' }}>
+              <span className="text-muted">BTC: </span>{DONATION_CONFIG.bitcoinAddress}
+            </div>
+            {DONATION_CONFIG.lightningAddress && (
+              <div className="text-small" style={{ wordBreak: 'break-all' }}>
+                <span className="text-muted">LN: </span>{DONATION_CONFIG.lightningAddress}
+              </div>
+            )}
+          </div>
         )}
 
         {/* Lock */}

@@ -290,7 +290,7 @@ let clientInstance: ElectrumClient | null = null;
 
 export function getClient(): ElectrumClient {
   if (!clientInstance) {
-    clientInstance = new ElectrumClient('');
+    throw new Error('Electrum client not initialized. Connect to a node first.');
   }
   return clientInstance;
 }

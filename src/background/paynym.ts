@@ -6,6 +6,7 @@ import { hmac } from '@noble/hashes/hmac.js';
 import { sha512 } from '@noble/hashes/sha2.js';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { getClient } from './electrum';
+import { bytesToHex, hexToBytes, concatBytes, bytesToBigint, bigintToBytes32 } from '../utils/bytes';
 
 bitcoin.initEccLib(ecc);
 
@@ -14,9 +15,9 @@ const network = bitcoin.networks.bitcoin;
 // ── Types ──
 
 export interface PaymentCode {
-  code: string;       // base58-encoded payment code
-  pubkey: Uint8Array;  // notification pubkey (33 bytes)
-  chainCode: Uint8Array; // 32 bytes
+  code: string;
+  pubkey: Uint8Array;
+  chainCode: Uint8Array;
 }
 
 export interface NotifTxParams {
@@ -27,41 +28,7 @@ export interface NotifTxParams {
   feeRate: number;
 }
 
-// ── Helpers ──
-
-function bytesToHex(bytes: Uint8Array): string {
-  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-function hexToBytes(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  }
-  return bytes;
-}
-
-function concatBytes(...arrays: Uint8Array[]): Uint8Array {
-  const total = arrays.reduce((sum, a) => sum + a.length, 0);
-  const result = new Uint8Array(total);
-  let offset = 0;
-  for (const arr of arrays) {
-    result.set(arr, offset);
-    offset += arr.length;
-  }
-  return result;
-}
-
 const CURVE_ORDER = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n;
-
-function bytesToBigint(bytes: Uint8Array): bigint {
-  return BigInt('0x' + bytesToHex(bytes));
-}
-
-function bigintToBytes32(n: bigint): Uint8Array {
-  const hex = n.toString(16).padStart(64, '0');
-  return hexToBytes(hex);
-}
 
 // ── Base58Check ──
 
