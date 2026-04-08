@@ -16,9 +16,9 @@
 
 ## What this is
 
-A Chrome extension that does what Samourai Wallet did, without the central servers that got it shut down. Connects to your own Fulcrum/Electrum node over WebSocket, or to public APIs (Blockstream, mempool.space) when a personal node isn't available. Private keys never leave the extension's service worker.
+A Chrome extension Bitcoin wallet with advanced privacy features. Connects to your own Fulcrum/Electrum node over WebSocket, or to public APIs (Blockstream, mempool.space) when a personal node isn't available.
 
-Built after the Samourai arrest in April 2024 proved that privacy wallets depending on centralized infrastructure have a single point of failure.
+Private keys never leave the extension's service worker. No external servers required. No accounts. No telemetry.
 
 ---
 
@@ -80,7 +80,7 @@ Chrome Extension (Manifest V3)
 - **Own node (WebSocket)** — connects to Fulcrum/Electrum Server via `wss://`
 - **Public nodes (REST)** — Blockstream and mempool.space via Esplora API
 - **Auto-detection** — routes `https://` URLs through REST, `wss://` through WebSocket
-- **Privacy levels** — each node shows who can see your address queries
+- **Privacy levels** — each node option shows who can see your address queries
 - **Reconnection** — exponential backoff (1s → 2s → 4s → ... → 60s max)
 
 ### Privacy tools
@@ -90,26 +90,26 @@ Chrome Extension (Manifest V3)
 | **Stonewall** | Custom | Creates 4 outputs (2 payment + 2 change) to simulate a collaborative transaction. No external coordinator. |
 | **Ricochet** | Custom | Builds a chain of 3 transactions through 2 intermediate self-owned addresses before reaching the destination. |
 | **Coin Control** | — | Manual UTXO selection with Branch and Bound optimization. Labels by origin (exchange / p2p / mined / mixed). |
-| **Privacy Score** | — | Heuristic engine scoring 0-100 with penalties for address reuse (-30), input merging (-25), obvious change (-20), round amounts (-15), UTXO consolidation (-15), change reuse (-20) and bonuses for Stonewall (+20), Ricochet (+15), Tor (+5), Taproot (+10). |
-| **Silent Payments** | BIP352 | Sender-side ECDH: computes shared secret between sender's input keys and recipient's scan pubkey to derive a unique P2TR output per transaction. |
-| **PayNyms** | BIP47 | Derives payment codes from HD wallet. Builds notification transaction with blinded payment code in OP_RETURN. Derives per-index send/receive addresses via ECDH. |
-| **UTXO Map** | — | Canvas-rendered visualization where each UTXO is a circle sized by value, colored by origin. Click to label. |
-| **AI Advisor** | Claude API | Sends anonymized transaction metadata (score, issue types, UTXO count, mode) to Claude for plain-language privacy analysis. Never sends addresses, amounts, or txids. |
+| **Privacy Score** | — | Heuristic scoring engine (0-100). Penalties: address reuse (-30), input merging (-25), obvious change (-20), round amounts (-15), UTXO consolidation (-15), change reuse (-20). Bonuses: Stonewall (+20), Ricochet (+15), Tor (+5), Taproot (+10). |
+| **Silent Payments** | BIP352 | Sender-side ECDH: computes shared secret between sender's input keys and recipient's scan pubkey to derive a unique P2TR output. |
+| **PayNyms** | BIP47 | Payment code derivation, notification transaction with blinded code in OP_RETURN, per-index send/receive address derivation via ECDH. |
+| **UTXO Map** | — | Canvas-rendered visualization. Each UTXO is a circle sized by value, colored by origin. Click to view details and add labels. |
+| **AI Advisor** | Claude API | Sends anonymized metadata (score, issue types, UTXO count, mode) for plain-language privacy analysis. Never sends addresses, amounts, or txids. Requires user-provided API key. |
 
 ### Hardware wallets
 
 | Device | Connection | Signing |
 |---|---|---|
 | **Coldcard** | xpub import (JSON export → paste zpub) | PSBT file via microSD |
-| **Keystone** | xpub import (scan/paste) | PSBT file transfer |
+| **Keystone** | xpub import (menu → extended public key) | PSBT file transfer |
 
-Watch-only mode: import xpub → view balance and receive → build unsigned PSBT → sign on device → upload signed PSBT → broadcast.
+Flow: import xpub → wallet operates in watch-only mode → build unsigned PSBT → export `.psbt` file → sign on device → upload signed PSBT → broadcast.
 
 ### Network
 
-- **Transaction notifications** — Chrome notification when bitcoin is received or a TX confirms
-- **Family Node** — generate WireGuard configs with QR codes to onboard friends/family to your node
-- **Fee estimation** — 3-tier (slow/normal/fast) from Electrum `estimatefee` or Esplora `/fee-estimates`
+- **Transaction notifications** — Chrome notification on incoming bitcoin or TX confirmation
+- **Family Node** — generate WireGuard configs with QR codes to share your node with others
+- **Fee estimation** — 3-tier (slow / normal / fast) from Electrum `estimatefee` or Esplora `/fee-estimates`
 
 ---
 
@@ -117,14 +117,14 @@ Watch-only mode: import xpub → view balance and receive → build unsigned PSB
 
 | Layer | Implementation |
 |---|---|
-| Key storage | AES-256-GCM + PBKDF2 100k in `chrome.storage.local` (never `sync`) |
+| Key storage | AES-256-GCM + PBKDF2 100k iterations, `chrome.storage.local` only |
 | Key isolation | Seed and xprv exist only in service worker memory, never sent to popup |
 | CSP | `script-src 'self'; object-src 'self'; connect-src 'self' https://* wss://* ws://*` |
 | Input validation | TypeScript strict mode, no `any`, no `eval()`, no inline scripts |
-| Brute force protection | 5 attempts → 30min lockout, counter persisted to storage |
-| Auto-lock | Service worker clears `unlockedState` after 5 minutes |
-| API isolation | AI advisor receives only scores and categories, never addresses or txids |
-| Crypto | `@noble/curves` (pure JS, audited) — no WASM, no native dependencies |
+| Brute force | 5 attempts → 30-minute lockout, counter persisted |
+| Auto-lock | Clears keys from memory after 5 minutes of inactivity |
+| API isolation | AI advisor receives only anonymized scores, never private data |
+| Crypto | `@noble/curves` (pure JS, audited) — no WASM, no native bindings |
 
 ---
 
@@ -134,52 +134,44 @@ Watch-only mode: import xpub → view balance and receive → build unsigned PSB
 git clone https://github.com/sovereign-wallet/sovereign-wallet.git
 cd sovereign-wallet
 npm install
-cp .env.example .env    # configure your node URL
+cp .env.example .env    # optional: configure your node URL
 npm run build
 ```
 
 Load in Chrome:
-1. `chrome://extensions` → Enable Developer Mode
-2. Load unpacked → select `dist/`
 
-### Scripts
+1. `chrome://extensions` → enable Developer Mode
+2. Load unpacked → select the `dist/` folder
 
 ```bash
-npm run build          # TypeScript check + Vite build
-npm run build:prod     # Build + zip for distribution
-npm test               # Run Vitest test suite
-npm run dev            # Vite dev server
+npm run build          # TypeScript check + Vite production build
+npm run build:prod     # Build + generate sovereign-wallet.zip
+npm test               # Vitest test suite
 ```
 
 ---
 
 ## Node setup
 
-Requires a dedicated machine (Intel NUC, old laptop, RPi 5) with:
-- 1TB+ SSD
-- Ubuntu 20.04+
-- Bitcoin Core + Fulcrum
+To run your own node you need a dedicated machine (Intel NUC, old laptop, Raspberry Pi 5) with 1TB+ SSD and Ubuntu 20.04+.
 
 ```bash
-# Automated setup script (Ubuntu)
-sudo bash scripts/setup-nuc.sh
+bash scripts/setup-nuc.sh
 ```
 
-Bitcoin Core syncs in 12-18 hours. Fulcrum indexes in 4-8 hours after that.
-
-See [`scripts/setup-nuc.sh`](scripts/setup-nuc.sh) for full details.
+The script installs Bitcoin Core, Fulcrum, Tor, and WireGuard. Bitcoin Core initial sync takes 12-18 hours, Fulcrum indexing 4-8 hours after that.
 
 ---
 
 ## Environment variables
 
-```bash
-VITE_DEFAULT_NODE_URL=        # wss://your-nuc-ip:50002
-VITE_NODE_ONION_ADDRESS=      # wss://your-onion.onion:50002
-VITE_WIREGUARD_PUBLIC_KEY=    # WireGuard server pubkey
-VITE_ANTHROPIC_API_KEY=       # Claude API key (optional)
-VITE_DONATION_BTC_ADDRESS=    # Bitcoin donation address (optional)
-VITE_DONATION_LIGHTNING_ADDRESS=  # Lightning address (optional)
+```
+VITE_DEFAULT_NODE_URL=             # wss://your-node-ip:50002
+VITE_NODE_ONION_ADDRESS=           # wss://your-node.onion:50002 (optional)
+VITE_WIREGUARD_PUBLIC_KEY=         # WireGuard server public key (optional)
+VITE_ANTHROPIC_API_KEY=            # Claude API key for AI advisor (optional)
+VITE_DONATION_BTC_ADDRESS=         # Donation address (optional)
+VITE_DONATION_LIGHTNING_ADDRESS=   # Lightning address (optional)
 ```
 
 ---
@@ -190,24 +182,25 @@ VITE_DONATION_LIGHTNING_ADDRESS=  # Lightning address (optional)
 npm test
 ```
 
-Covers: privacy scoring (penalties + bonuses), coin control (Branch and Bound + validation), silent payment address detection, UTXO selection edge cases.
+Coverage: privacy scoring (all penalties and bonuses), coin control (Branch and Bound, validation, edge cases), silent payment address detection.
 
 ---
 
-## Roadmap
+## Not yet implemented
 
-| Target | Feature |
-|---|---|
-| Q2 2026 | Silent Payments receive (full BIP352 scanning) |
-| Q3 2026 | Mobile companion app (Android) |
-| Q4 2026 | CoinJoin via Joinstr/Nostr (no central coordinator) |
-| 2027 | Ledger/Trezor support via WebHID |
+- Silent Payments receive (BIP352 scanning)
+- CoinJoin (Whirlpool / Joinstr)
+- Ledger / Trezor via WebHID
+- Mobile companion app
+- Passphrase (BIP39 passphrase / 25th word) support
 
 ---
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: email `security@sovereign-wallet.dev` (see [SECURITY.md](SECURITY.md)).
+See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Security vulnerabilities: do not open a public issue. Email `security@sovereign-wallet.dev` — see [SECURITY.md](SECURITY.md).
 
 ## License
 
