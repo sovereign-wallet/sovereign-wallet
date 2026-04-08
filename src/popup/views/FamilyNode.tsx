@@ -96,7 +96,7 @@ export default function FamilyNode({ onBack }: FamilyNodeProps) {
         <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', padding: '4px' }}>
           &larr; Back
         </button>
-        <h1>Family Node</h1>
+        <h1>Node</h1>
         <div />
       </div>
 
