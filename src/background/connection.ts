@@ -19,6 +19,15 @@ let activeClient: ActiveClient | null = null;
 
 // ── Resolve which client to use ──
 
+function detectConnectionType(url: string): 'websocket' | 'rest' {
+  // REST: any https:// URL that doesn't look like a WebSocket port
+  if (url.startsWith('https://') && !url.includes(':50001') && !url.includes(':50002')) {
+    return 'rest';
+  }
+  // WebSocket: wss:// or ws://
+  return 'websocket';
+}
+
 async function getNodeConfig(): Promise<{ url: string; connectionType: 'websocket' | 'rest' }> {
   const stored = await chrome.storage.local.get([SELECTED_NODE_KEY, NODE_URL_KEY]);
   const nodeId = (stored[SELECTED_NODE_KEY] as string) ?? 'own-node';
@@ -26,7 +35,9 @@ async function getNodeConfig(): Promise<{ url: string; connectionType: 'websocke
 
   const node = KNOWN_NODES.find(n => n.id === nodeId);
   const url = savedUrl ?? node?.url ?? '';
-  const connectionType = node?.connectionType ?? 'websocket';
+
+  // Detect type from URL directly — more reliable than stored nodeId
+  const connectionType = url ? detectConnectionType(url) : (node?.connectionType ?? 'websocket');
 
   return { url, connectionType };
 }
@@ -298,7 +309,7 @@ export async function getRawTransaction(txid: string): Promise<string> {
 }
 
 export async function testConnection(url: string): Promise<{ connected: boolean; version?: string; error?: string }> {
-  const isRest = url.startsWith('https://') && !url.includes(':50002');
+  const isRest = detectConnectionType(url) === 'rest';
 
   try {
     if (isRest) {
