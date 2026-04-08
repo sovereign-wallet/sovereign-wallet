@@ -22,7 +22,7 @@ const env = meta.env ?? {};
 export const KNOWN_NODES: NodeOption[] = [
   {
     id: 'own-node',
-    name: 'My Node (NUC)',
+    name: 'Sovereign Node',
     url: env.VITE_DEFAULT_NODE_URL ?? '',
     connectionType: 'websocket',
     privacyLevel: 'maximum',
