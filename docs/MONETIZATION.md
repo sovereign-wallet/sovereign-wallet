@@ -84,8 +84,8 @@
 **What:** Bitcoin and Lightning donations from users and supporters.
 
 **Channels:**
-- On-chain address in README and website: `bc1qlwgnpsxxr7smmu880g26hfdzyrcd8egrqm0j8c`
-- Lightning address in README and website: `peppyfortune074@walletofsatoshi.com`
+- On-chain address in README and website: `[set in .env]`
+- Lightning address in README and website: `[set in .env]`
 - Geyser Fund campaign (for visibility in Bitcoin community)
 - GitHub Sponsors (for developer-focused audience)
 

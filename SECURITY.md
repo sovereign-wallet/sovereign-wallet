@@ -54,7 +54,7 @@ Encrypt your email with our PGP key if possible (key available on request).
 - Performance issues
 - Typos in documentation
 
-These should be reported as regular [GitHub Issues](https://github.com/nicacripto/sovereign-wallet/issues).
+These should be reported as regular [GitHub Issues](https://github.com/sovereign-wallet/sovereign-wallet/issues).
 
 ---
 

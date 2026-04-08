@@ -22,8 +22,8 @@ export interface InviteConfig {
 
 // These are read from storage or fall back to defaults.
 // Users configure them via .env (VITE_WIREGUARD_PUBLIC_KEY) or Settings.
-const WG_DEFAULT_ENDPOINT = '192.168.0.184:51820';
-const WG_DEFAULT_PUBKEY = 'Yqq40nUYceHybNqL4hYNOTquNR17bEWkvqqZPV4Yamg=';
+const WG_DEFAULT_ENDPOINT = '';
+const WG_DEFAULT_PUBKEY = 'CHANGE_ME_SET_IN_ENV';
 
 async function getWGConfig(): Promise<{ endpoint: string; pubkey: string }> {
   const result = await chrome.storage.local.get(['wg_endpoint', 'wg_pubkey']);

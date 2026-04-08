@@ -6,7 +6,7 @@ We welcome contributions from anyone who cares about Bitcoin privacy. Here's how
 
 ## Reporting bugs
 
-Open a [GitHub Issue](https://github.com/nicacripto/sovereign-wallet/issues) with the following template:
+Open a [GitHub Issue](https://github.com/sovereign-wallet/sovereign-wallet/issues) with the following template:
 
 ```
 **Description**: What happened?
@@ -25,7 +25,7 @@ Label it `bug`. Include as much detail as possible. If you can reproduce it cons
 
 ## Proposing features
 
-1. **Start a Discussion first.** Open a [GitHub Discussion](https://github.com/nicacripto/sovereign-wallet/discussions) under the "Ideas" category. Describe the problem you're solving, not just the feature you want.
+1. **Start a Discussion first.** Open a [GitHub Discussion](https://github.com/sovereign-wallet/sovereign-wallet/discussions) under the "Ideas" category. Describe the problem you're solving, not just the feature you want.
 2. **Get feedback.** Let the community and maintainers weigh in before you write code.
 3. **Then open a PR.** Once there's rough consensus, implement it and submit a pull request.
 

@@ -69,7 +69,7 @@ Bitcoin Core initial sync takes 12-18 hours on decent hardware. After that, Fulc
 ## Install
 
 ```bash
-git clone https://github.com/nicacripto/sovereign-wallet.git
+git clone https://github.com/sovereign-wallet/sovereign-wallet.git
 cd sovereign-wallet
 npm install
 cp .env.example .env
@@ -96,9 +96,9 @@ Details at: **sovereign-wallet.dev** (coming soon)
 
 If Sovereign Wallet saves you from a privacy mistake, consider sending a few sats. This project has no investors, no company, no plans to have either.
 
-**Bitcoin:** `bc1qlwgnpsxxr7smmu880g26hfdzyrcd8egrqm0j8c`
+**Bitcoin:** `Set in .env (VITE_DONATION_BTC_ADDRESS)`
 
-**Lightning:** `peppyfortune074@walletofsatoshi.com`
+**Lightning:** `Set in .env (VITE_DONATION_LIGHTNING_ADDRESS)`
 
 ---
 

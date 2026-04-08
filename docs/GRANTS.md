@@ -133,7 +133,7 @@ The wallet itself will always be free and open source. Revenue comes from option
 
 ## Links
 
-- Repository: [github.com/nicacripto/sovereign-wallet](https://github.com/nicacripto/sovereign-wallet)
+- Repository: [github.com/sovereign-wallet/sovereign-wallet](https://github.com/sovereign-wallet/sovereign-wallet)
 - Website: sovereign-wallet.dev (coming soon)
 - Contact: hello@sovereign-wallet.dev
 - Security: security@sovereign-wallet.dev

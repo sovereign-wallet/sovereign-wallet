@@ -77,6 +77,6 @@ If you want to know more about the team, look at the commit history. The code sp
 
 ## Contact
 
-- GitHub: [github.com/nicacripto/sovereign-wallet](https://github.com/nicacripto/sovereign-wallet)
+- GitHub: [github.com/sovereign-wallet/sovereign-wallet](https://github.com/sovereign-wallet/sovereign-wallet)
 - Security: security@sovereign-wallet.dev
 - General: hello@sovereign-wallet.dev
