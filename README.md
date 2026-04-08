@@ -3,66 +3,128 @@
 </p>
 
 <h1 align="center">Sovereign Wallet</h1>
-<h3 align="center">The browser wallet Samourai never built.</h3>
+<p align="center">Privacy-first Bitcoin wallet for Chrome. Connects to your own node.</p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Network: Bitcoin Mainnet](https://img.shields.io/badge/Network-Bitcoin%20Mainnet-orange.svg)]() [![Open Source](https://img.shields.io/badge/Open%20Source-yes-brightgreen.svg)]()
-
----
-
-## Why this exists
-
-Samourai Wallet was the most advanced Bitcoin privacy wallet ever built. Real coin control, real CoinJoin, real post-mix spending tools. Nothing else came close.
-
-In April 2024, its founders were arrested and the servers were seized. The code was open source, but nobody finished porting it to the browser. The Android app died with its infrastructure. Millions of sats worth of privacy tooling just... stopped.
-
-Sovereign Wallet picks up where Samourai left off. Same privacy philosophy. Same uncompromising approach to coin control. But this time it connects to YOUR node. No company. No central servers. No single point of failure.
-
-If we get arrested tomorrow, you can still run this from source.
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
+  <img src="https://img.shields.io/badge/network-bitcoin%20mainnet-orange.svg" alt="Bitcoin Mainnet" />
+  <img src="https://img.shields.io/badge/manifest-v3-green.svg" alt="Manifest V3" />
+  <img src="https://img.shields.io/badge/typescript-strict-blue.svg" alt="TypeScript Strict" />
+</p>
 
 ---
 
-## What it does
+## What this is
 
-| Feature | What | Why it matters |
+A Chrome extension that does what Samourai Wallet did, without the central servers that got it shut down. Connects to your own Fulcrum/Electrum node over WebSocket, or to public APIs (Blockstream, mempool.space) when a personal node isn't available. Private keys never leave the extension's service worker.
+
+Built after the Samourai arrest in April 2024 proved that privacy wallets depending on centralized infrastructure have a single point of failure.
+
+---
+
+## Architecture
+
+```
+Chrome Extension (Manifest V3)
+├── Service Worker (background)
+│   ├── keyring.ts          AES-256-GCM vault, PBKDF2 100k, auto-lock 5min
+│   ├── connection.ts       Routes between WebSocket (own node) and REST (public)
+│   ├── electrum.ts         Electrum protocol client, JSON-RPC over WebSocket
+│   ├── esplora-client.ts   REST client for Blockstream/mempool.space APIs
+│   ├── wallet-derive.ts    BIP84 HD key derivation (m/84'/0'/0')
+│   ├── transactions.ts     TX builder: simple, Stonewall, Ricochet, unsigned PSBT
+│   ├── privacy.ts          Heuristic privacy scoring engine (0-100)
+│   ├── coin-control.ts     Branch and Bound UTXO selection
+│   ├── silent-payments.ts  BIP352 sender-side implementation
+│   ├── paynym.ts           BIP47 payment codes + notification TX
+│   ├── hardware-wallet.ts  Watch-only mode, PSBT export/import
+│   ├── utxo-labels.ts      Persistent UTXO tagging (origin tracking)
+│   ├── ai-advisor.ts       Claude API integration for privacy analysis
+│   └── node-admin.ts       WireGuard peer management for Family Node
+│
+├── Popup (React + TypeScript)
+│   ├── Onboarding          Create wallet / Import seed / Connect hardware
+│   ├── Dashboard           Balance, recent TXs, connection status, privacy banner
+│   ├── Send                Destination, amount, fee, mode selector, PSBT flow
+│   ├── Receive             QR code, single-use address warning
+│   ├── CoinControl         Manual UTXO selection with labels and origin colors
+│   ├── UTXOMap             Canvas visualization of UTXO set by size and origin
+│   ├── TransactionHistory  Paginated list, filters, CSV export
+│   ├── Settings            Node selector, PayNym, API key, seed export
+│   ├── FamilyNode          WireGuard peer management, QR invite generation
+│   ├── ConnectHardware     Coldcard/Keystone xpub import
+│   └── PSBTExchange        Download/upload PSBT for hardware wallet signing
+│
+├── Config
+│   ├── nodes.ts            Known node list with privacy level metadata
+│   └── donations.ts        Optional donation addresses (env vars)
+│
+└── Crypto (no WASM, pure JS)
+    └── noble-ecc.ts        secp256k1 adapter using @noble/curves
+```
+
+---
+
+## Features
+
+### Wallet core
+
+- **BIP84 HD wallet** — 24-word BIP39 seed, native SegWit (`bc1q...`), gap limit 20
+- **AES-256-GCM encryption** — seed encrypted with PBKDF2 (100,000 iterations), unique salt + IV per encryption
+- **Auto-lock** — clears private keys from memory after 5 minutes of inactivity
+- **Rate limiting** — 5 password attempts, then 30-minute lockout (persisted to storage)
+- **Import/export** — BIP39-compatible with Samourai, Sparrow, BlueWallet, Electrum
+
+### Node connection
+
+- **Own node (WebSocket)** — connects to Fulcrum/Electrum Server via `wss://`
+- **Public nodes (REST)** — Blockstream and mempool.space via Esplora API
+- **Auto-detection** — routes `https://` URLs through REST, `wss://` through WebSocket
+- **Privacy levels** — each node shows who can see your address queries
+- **Reconnection** — exponential backoff (1s → 2s → 4s → ... → 60s max)
+
+### Privacy tools
+
+| Tool | Protocol | How it works |
 |---|---|---|
-| **HD Wallet (BIP84)** | 24-word mnemonic seed, native SegWit addresses | Industry standard. Your keys, your coins. Works with any recovery tool. |
-| **Connect to YOUR node** | Fulcrum or Electrum Server support | Your transactions never touch our infrastructure. Nobody builds a profile of your wallet. |
-| **Stonewall** | High-entropy transactions that look like CoinJoin | Confuses chain analysis without needing a counterparty. Every spend looks like a collaborative transaction. |
-| **Ricochet** | Intermediate hops before your payment arrives | Adds distance between your UTXO history and the final recipient. Makes "tainted coin" flags irrelevant. |
-| **Coin Control** | Manual UTXO selection for every transaction | You decide which coins to spend. No algorithm merging your anonymous and KYC coins behind your back. |
-| **Privacy Score** | Real-time analysis before you broadcast | See exactly what a transaction reveals BEFORE you send it. Entropy, address reuse, change detection, cluster risk. |
-| **UTXO Map** | Visual graph of your coin history | Understand your wallet's on-chain footprint at a glance. See which coins are linked, which are isolated. |
-| **Silent Payments (BIP352)** | Static address that generates unique on-chain addresses | The biggest on-chain privacy improvement since Taproot. Share one address publicly, receive to unique addresses every time. No interaction required. |
-| **PayNyms (BIP47)** | Reusable payment codes | Send to the same person repeatedly without reusing addresses. No server coordination needed. |
-| **Family Node** | Invite friends/family to your node via QR code | Onboard people to Bitcoin privacy without making them run their own node. One QR code, done. |
-| **AI Privacy Advisor** | Plain language transaction analysis | Not everyone reads hex. The advisor tells you in plain English what each transaction reveals and what you can do about it. |
+| **Stonewall** | Custom | Creates 4 outputs (2 payment + 2 change) to simulate a collaborative transaction. No external coordinator. |
+| **Ricochet** | Custom | Builds a chain of 3 transactions through 2 intermediate self-owned addresses before reaching the destination. |
+| **Coin Control** | — | Manual UTXO selection with Branch and Bound optimization. Labels by origin (exchange / p2p / mined / mixed). |
+| **Privacy Score** | — | Heuristic engine scoring 0-100 with penalties for address reuse (-30), input merging (-25), obvious change (-20), round amounts (-15), UTXO consolidation (-15), change reuse (-20) and bonuses for Stonewall (+20), Ricochet (+15), Tor (+5), Taproot (+10). |
+| **Silent Payments** | BIP352 | Sender-side ECDH: computes shared secret between sender's input keys and recipient's scan pubkey to derive a unique P2TR output per transaction. |
+| **PayNyms** | BIP47 | Derives payment codes from HD wallet. Builds notification transaction with blinded payment code in OP_RETURN. Derives per-index send/receive addresses via ECDH. |
+| **UTXO Map** | — | Canvas-rendered visualization where each UTXO is a circle sized by value, colored by origin. Click to label. |
+| **AI Advisor** | Claude API | Sends anonymized transaction metadata (score, issue types, UTXO count, mode) to Claude for plain-language privacy analysis. Never sends addresses, amounts, or txids. |
 
----
+### Hardware wallets
 
-## Privacy levels
-
-| Option | Who sees your addresses | Best for |
+| Device | Connection | Signing |
 |---|---|---|
-| Your own node | Nobody | Maximum privacy |
-| Developer node | Only the developer | Quick start |
-| Blockstream | Blockstream Inc. | Testing only |
-| mempool.space | mempool.space | Testing only |
-| Custom | Depends on the node | Advanced users |
+| **Coldcard** | xpub import (JSON export → paste zpub) | PSBT file via microSD |
+| **Keystone** | xpub import (scan/paste) | PSBT file transfer |
 
-> Your private keys never leave your device regardless of which node you use.
+Watch-only mode: import xpub → view balance and receive → build unsigned PSBT → sign on device → upload signed PSBT → broadcast.
+
+### Network
+
+- **Transaction notifications** — Chrome notification when bitcoin is received or a TX confirms
+- **Family Node** — generate WireGuard configs with QR codes to onboard friends/family to your node
+- **Fee estimation** — 3-tier (slow/normal/fast) from Electrum `estimatefee` or Esplora `/fee-estimates`
 
 ---
 
-## Run your own node
+## Security model
 
-You need:
-- A dedicated machine: Intel NUC, old PC, or Raspberry Pi 5
-- 1TB+ SSD (NVMe preferred)
-- Ubuntu 24.04 LTS
-
-Full step-by-step instructions in [`docs/SETUP_NUC.md`](docs/SETUP_NUC.md).
-
-Bitcoin Core initial sync takes 12-18 hours on decent hardware. After that, Fulcrum indexes in 4-8 hours. Then you're fully sovereign.
+| Layer | Implementation |
+|---|---|
+| Key storage | AES-256-GCM + PBKDF2 100k in `chrome.storage.local` (never `sync`) |
+| Key isolation | Seed and xprv exist only in service worker memory, never sent to popup |
+| CSP | `script-src 'self'; object-src 'self'; connect-src 'self' https://* wss://* ws://*` |
+| Input validation | TypeScript strict mode, no `any`, no `eval()`, no inline scripts |
+| Brute force protection | 5 attempts → 30min lockout, counter persisted to storage |
+| Auto-lock | Service worker clears `unlockedState` after 5 minutes |
+| API isolation | AI advisor receives only scores and categories, never addresses or txids |
+| Crypto | `@noble/curves` (pure JS, audited) — no WASM, no native dependencies |
 
 ---
 
@@ -72,61 +134,81 @@ Bitcoin Core initial sync takes 12-18 hours on decent hardware. After that, Fulc
 git clone https://github.com/sovereign-wallet/sovereign-wallet.git
 cd sovereign-wallet
 npm install
-cp .env.example .env
+cp .env.example .env    # configure your node URL
 npm run build
 ```
 
-Then load the `dist/` folder in Chrome:
-1. Go to `chrome://extensions`
-2. Enable Developer Mode
-3. Click "Load unpacked"
-4. Select the `dist/` folder
+Load in Chrome:
+1. `chrome://extensions` → Enable Developer Mode
+2. Load unpacked → select `dist/`
+
+### Scripts
+
+```bash
+npm run build          # TypeScript check + Vite build
+npm run build:prod     # Build + zip for distribution
+npm test               # Run Vitest test suite
+npm run dev            # Vite dev server
+```
 
 ---
 
-## Don't want to run your own node?
+## Node setup
 
-Running a full node requires time and hardware. If you want privacy benefits without the setup, we offer node access as a service. Your wallet. Your keys. Our infrastructure.
+Requires a dedicated machine (Intel NUC, old laptop, RPi 5) with:
+- 1TB+ SSD
+- Ubuntu 20.04+
+- Bitcoin Core + Fulcrum
 
-Details at: **sovereign-wallet.dev** (coming soon)
+```bash
+# Automated setup script (Ubuntu)
+sudo bash scripts/setup-nuc.sh
+```
+
+Bitcoin Core syncs in 12-18 hours. Fulcrum indexes in 4-8 hours after that.
+
+See [`scripts/setup-nuc.sh`](scripts/setup-nuc.sh) for full details.
 
 ---
 
-## Support the project
+## Environment variables
 
-If Sovereign Wallet saves you from a privacy mistake, consider sending a few sats. This project has no investors, no company, no plans to have either.
+```bash
+VITE_DEFAULT_NODE_URL=        # wss://your-nuc-ip:50002
+VITE_NODE_ONION_ADDRESS=      # wss://your-onion.onion:50002
+VITE_WIREGUARD_PUBLIC_KEY=    # WireGuard server pubkey
+VITE_ANTHROPIC_API_KEY=       # Claude API key (optional)
+VITE_DONATION_BTC_ADDRESS=    # Bitcoin donation address (optional)
+VITE_DONATION_LIGHTNING_ADDRESS=  # Lightning address (optional)
+```
 
-**Bitcoin:** `Set in .env (VITE_DONATION_BTC_ADDRESS)`
+---
 
-**Lightning:** `Set in .env (VITE_DONATION_LIGHTNING_ADDRESS)`
+## Tests
+
+```bash
+npm test
+```
+
+Covers: privacy scoring (penalties + bonuses), coin control (Branch and Bound + validation), silent payment address detection, UTXO selection edge cases.
 
 ---
 
 ## Roadmap
 
-| When | What |
+| Target | Feature |
 |---|---|
-| **Q2 2026** | Silent Payments receive (full BIP352 support) |
-| **Q3 2026** | Mobile companion app (Android) |
-| **Q4 2026** | CoinJoin via Joinstr/Nostr — no central coordinator |
-| **2027** | Hardware wallet integration (Coldcard, Ledger, Trezor) |
-
----
-
-## Why "Sovereign"
-
-In Bitcoin, sovereignty means one thing: nobody can stop you from transacting. Not a company, not a government, not a service provider. Your keys, your node, your rules. That's not a slogan — it's an architecture decision. Every piece of Sovereign Wallet is designed so that no single entity can shut it down, censor it, or surveil it.
-
-This project exists because Samourai proved that privacy tools built on centralized infrastructure have a single point of failure: the people who run them. The founders built incredible technology, but the server dependency meant that when they were taken down, every user lost access. We learned that lesson. Sovereign Wallet has no servers to seize, no company to subpoena, no founder whose arrest kills the project.
-
-The philosophy is simple. No company. No VC money. No token. No roadmap driven by investor returns. The code is open. Fork it. Run it. Modify it. Deploy it on your own domain. Sovereign Wallet is a tool, not a product. If it helps you transact privately, it did its job. If we disappear tomorrow, the code doesn't.
+| Q2 2026 | Silent Payments receive (full BIP352 scanning) |
+| Q3 2026 | Mobile companion app (Android) |
+| Q4 2026 | CoinJoin via Joinstr/Nostr (no central coordinator) |
+| 2027 | Ledger/Trezor support via WebHID |
 
 ---
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on reporting bugs, proposing features, and submitting pull requests.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: email `security@sovereign-wallet.dev` (see [SECURITY.md](SECURITY.md)).
 
 ## License
 
-MIT. Code is law. Fork freely.
+[MIT](LICENSE)
